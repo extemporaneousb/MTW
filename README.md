@@ -18,14 +18,16 @@ pip3 install https://github.com/extemporaneousb/MTW/zipball/master
 3. Align reads to reference and generate vcf and tsv outputs 
 
 ```
-process_samples Reads
+process_samples -o Results Reads
 ```
  
-4. Summarize tsv outputs from step 3 by aggregating across samples.
+4. Compute heteroplasmy on the samples processed from step (3) above
+   and write output to summary.tsv.
 
 ```
-summarize_samples Results
+summarize_samples -o summary.tsv Results
 ```
+
 
 ## Objectives
 
@@ -45,49 +47,8 @@ summarize_samples Results
 ## Installation
 
 This package was developed on Mac, but should work without
-modification on any Unix. On Mac we use `brew` to install packages; on
-other platforms use the appropriate package manager.
-
-### Backup Current Packages
-
-```
-brew list > .backup_package_list_`date -I`.txt
-```
-
-### Update Brew Package List
-
-```
-brew update && brew upgrade
-```
-
-### Install Dependencies
-
-```
-brew install bcftools bwa gnuplot markdown pandoc python3 r readline \
-  samtools
-```
-
-### Install MTW Python Package
-
-```
-pip3 install MTW
-```
-
-One might consider running a virtual environment as opposed to
-installing in the system python. To do this, run:
-
-
-```
-python3 -m venv .VE
-```
-
-Then
-
-```
-. .VE/bin/activate
-pip install MTW
-```
-
+modification on any Unix. On Mac we use `brew` to install dependencies
+and pip to install the package.
 
 ## Running
 
