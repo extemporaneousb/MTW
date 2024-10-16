@@ -1,0 +1,10 @@
+.Rhistory
+.VE
+.DS_Store
+*~
+Results*
+MTW.egg-info
+Opt/mummer-4.0.0rc1
+build
+Reads/*.fastq
+

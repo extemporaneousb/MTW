@@ -1,0 +1,116 @@
+#!/usr/bin/env python3
+
+
+cmd_doc = """
+Usage: process_samples [-fnv] [-c <condir>] [-o <outdir>] [-r <refseq>] <reads_dir>
+
+Options:
+
+-o <outdir>   Write results to outdir [default: ./Results]
+
+-c <condir>   Recall variants using the consensus sequence from a first
+              pass of process_samples and deposit the results in condir.
+
+-f            Force execution. process_reads.py does not re-run previously 
+              completed executions if the output exists in <outdir>. This 
+              option forces make to completely re-execute using the '-B' option 
+              (ignore dependency checks).
+
+-n            Print commands that would be executed without performing any action.
+
+-v            Print more detailed output during execution.
+
+-r <refseq>   Use refseq as the reference sequence to align the reads to.
+
+Arguments:
+
+<reads_dir>          Directory containing pairs of fastq files for each sample, 
+                     one for forward and one for reverse reads from PE sequencing run.
+
+"""
+
+import os
+import subprocess
+import importlib.resources
+
+from docopt import docopt
+
+def verbose_print(message, verbose):
+    """Prints a message only if verbose mode is enabled."""
+    if verbose:
+        print(message)
+
+def main():
+    # Parse command-line arguments using docopt
+    args = docopt(cmd_doc)
+
+    force = args['-f']
+    outdir = args['-o']
+    verbose = args['-v']
+    dry_run = args['-n']
+    reads_dir = args['<reads_dir>']
+    refseq = args['-r'] if args['-r'] else \
+        importlib.resources.files('MTW.Reference').joinpath('NC_012920_human_mito_dna.fasta')
+    consensus_dir = args['-c'] if args['-c'] else None
+
+    
+    # Check if the reads directory exists
+    if not os.path.isdir(reads_dir):
+        print(f"Error: Directory: {reads_dir} does not exist.")
+        exit(1)
+
+    # Create output directory if it doesn't exist
+    if not os.path.exists(outdir):
+        os.makedirs(outdir, exist_ok=True)
+
+    # Get the Makefile location.
+    make_file = importlib.resources.files('MTW.Bin').joinpath('Makefile')
+        
+    verbose_print(f"Reading files from: {reads_dir}", verbose)
+    verbose_print(f"Output directory: {outdir}", verbose)
+    verbose_print(f"Reference sequence: {refseq}", verbose)
+    verbose_print(f"Makefile: {make_file}", verbose)
+    
+    # List fastq files and process each sample
+    for filename in os.listdir(reads_dir):
+        if '_R1' in filename and filename.endswith('.fastq'):
+            sample_name = filename.split('_R1')[0]
+            verbose_print(f"Processing sample: {sample_name}", verbose)
+
+            # Construct the make commands based on the force option
+            make_command = ['make', '-f', make_file,
+                            f'INNAME={sample_name}',
+                            f'INDIR={reads_dir}',
+                            f'OUTDIR={outdir}',
+                            f'REFSEQ={refseq}'
+                            ]
+            
+            if force:
+                make_command.insert(1, '-B')
+
+            if dry_run:
+                make_command.insert(1, '-n')
+            
+            try:
+                make_all = make_command + ['all']
+                verbose_print(f"Make command: {make_all}", verbose)
+                res = subprocess.run(make_all, check=True)
+                if res.returncode == 0:
+                    if consensus_dir:
+                        make_recall = ['make', '-f', make_file,
+                                       f'INNAME={sample_name}',
+                                       f'INDIR={reads_dir}',
+                                       f'OUTDIR={consensus_dir}', # {outdir}/{sample_name}
+                                       f'REFSEQ={outdir}/{sample_name}_consensus.fasta',
+                                       'all-without-consensus']
+                        res = subprocess.run(make_recall, check=True)
+                    
+            except subprocess.CalledProcessError as e:
+                print(f"Error processing sample {sample_name}: {e}")
+                exit(1)
+
+
+if __name__ == '__main__':
+    main()
+
+

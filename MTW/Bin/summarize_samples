@@ -1,0 +1,142 @@
+#!/usr/bin/env python3
+
+cmd_doc = """
+Usage: summarize_samples [-vs] [-o <summary_tsv>] <results_dir>
+
+
+Write a tab-delimited file containing the following columns:
+
+|column name  | Description
+--------------------------------------------------------------------------------
+|sample_name  | The name of the sample derived from the filename:
+                `sample_name_pileup.tsv`
+|mean_dp      | Average number of reads per base
+|median_dp    | Median number of reads per base
+|q05_dp       | 5th percentile number of reads per base
+|q10_dp       | 10th percentile number of reads per base
+|q90_dp       | 90th percentile number of reads per base
+|q95_dp       | 95th percentile number of reads per base
+|n_sites90_10 | Count of the number of sites with a variant that occurs within
+                10 to 90 percent of the reads for that site (aka, Heteroplasmy)
+|sites90_10** | The base position of all sites falling within the above range
+                (aka, Heteroplasmic Sites)
+--------------------------------------------------------------------------------
+
+** This column is included only if one specifies the '-s' option. 
+
+
+Options:
+
+-v                     Print more detailed output during execution.
+
+-o <summary_tsv>       The output file for the summary.
+
+-s                     Include heteroplasmic site locations if they exist [default: False].
+
+Arguments:
+
+<results_dir>          Directory containing results from running 'process_samples'
+"""
+
+import os
+import sys
+import numpy as np
+import pandas as pd
+from docopt import docopt
+
+def verbose_print(message, verbose):
+    """Prints a message only if verbose mode is enabled."""
+    if verbose:
+        print(message)
+
+
+FILE_PATTERN='_pileup.tsv'
+DP_COL='[6]DP'
+AD_COL_PATTERN='[7].*:AD'
+
+def main():
+    # Parse command-line arguments using docopt
+    args = docopt(cmd_doc)
+
+    summary_tsv = args['-o'] if args['-o'] else 'summary.tsv'
+    verbose = args['-v']
+    results_dir = args['<results_dir>']
+    include_sites = args['-s']
+
+    # Check if the results directory exists
+    if not os.path.isdir(results_dir):
+        print(f"Error: Directory: {results_dir} does not exist.")
+        sys.exit(1)
+
+    verbose_print(f"Reading files from: {results_dir}", verbose)
+    verbose_print(f"Output file: {summary_tsv}", verbose)
+
+    # Initialize a list to store summary data for each sample
+    summary_data = []
+
+    # Process each TSV file in the directory
+    for filename in os.listdir(results_dir):
+        if filename.endswith(FILE_PATTERN):
+            verbose_print(f"Processing sample: {filename}", verbose)
+            
+            try:
+                # Construct the full file path
+                filepath = os.path.join(results_dir, filename)
+
+                # Read the TSV file into a DataFrame
+                df = pd.read_csv(filepath, sep='\t')
+
+                # Extract the sample name from the filename
+                sample_name = filename[:-len(FILE_PATTERN)]
+
+                # Compute summary statistics
+                mean_dp = df[DP_COL].mean()
+                median_dp = df[DP_COL].median()
+                quartiles_dp = df[DP_COL].quantile([.05, .1, .9, .95])
+                
+                # Compute heteroplasmy for three thresholds
+                ad_col = df.filter(regex=r'[7].*:AD')
+                variant_counts = ad_col.map(lambda x: [float(y) for y in x.split(',')])
+                variant_totals = variant_counts.map(sum)
+                cuts = [10.0]
+                h_cut = {}
+                s_cut = {}
+
+                for c in cuts:
+                    sites = np.zeros(len(variant_totals))
+
+                    for i in range(0, len(variant_totals)):
+                        sites[i] = any([c <= (100.0*(x/variant_totals.iloc[i,0])) <= (100.0-c) for x in variant_counts.iloc[i,0]])
+                        
+
+                    h_cut[c] = sum(sites)
+                    s_cut[c] = np.where(sites)[0].tolist()
+                    
+                row = {
+                    'sample_name':   sample_name,
+                    'mean_dp':       mean_dp,
+                    'median_dp':     median_dp,
+                    'q05_dp':        quartiles_dp[.05],
+                    'q10_dp':        quartiles_dp[.1],
+                    'q90_dp':        quartiles_dp[.9],
+                    'q95_dp':        quartiles_dp[.95],
+                    'n_sites90_10':  h_cut[10]
+                }
+                if (include_sites):
+                    row['sites90_10'] = s_cut[10]
+                summary_data.append(row)
+
+
+            except Exception as e:
+                print(f"Error processing sample {filename}: {e}")
+                sys.exit(1)
+
+    # Create a DataFrame from the summary data
+    summary_df = pd.DataFrame(summary_data)
+
+    # Write the summary DataFrame to a TSV file
+    summary_df.to_csv(summary_tsv, sep='\t', index=False, float_format='%.2f')
+    verbose_print(f"Summary statistics written to {summary_tsv}", verbose)
+
+if __name__ == '__main__':
+    main()
