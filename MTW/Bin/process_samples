@@ -2,14 +2,12 @@
 
 
 cmd_doc = """
-Usage: process_samples [-fnv] [-c <condir>] [-o <outdir>] [-r <refseq>] <reads_dir>
+Usage: process_samples [-fnvk] [-o <outdir>] [-r <refseq>] <reads_dir>
 
 Options:
 
 -o <outdir>   Write results to outdir [default: ./Results]
 
--c <condir>   Recall variants using the consensus sequence from a first
-              pass of process_samples and deposit the results in condir.
 
 -f            Force execution. process_reads.py does not re-run previously 
               completed executions if the output exists in <outdir>. This 
@@ -20,12 +18,15 @@ Options:
 
 -v            Print more detailed output during execution.
 
+-k            Keep all output files - useful when repeatedly processing a
+              directory of FASTQ files
+
 -r <refseq>   Use refseq as the reference sequence to align the reads to.
 
 Arguments:
 
-<reads_dir>          Directory containing pairs of fastq files for each sample, 
-                     one for forward and one for reverse reads from PE sequencing run.
+<reads_dir>   Directory containing pairs of fastq files for each sample, 
+              one for forward and one for reverse reads from PE sequencing run.
 
 """
 
@@ -51,9 +52,9 @@ def main():
     reads_dir = args['<reads_dir>']
     refseq = args['-r'] if args['-r'] else \
         importlib.resources.files('MTW.Reference').joinpath('NC_012920_human_mito_dna.fasta')
-    consensus_dir = args['-c'] if args['-c'] else None
+    keep_all_output = args['-k']
 
-    
+   
     # Check if the reads directory exists
     if not os.path.isdir(reads_dir):
         print(f"Error: Directory: {reads_dir} does not exist.")
@@ -82,8 +83,7 @@ def main():
                             f'INNAME={sample_name}',
                             f'INDIR={reads_dir}',
                             f'OUTDIR={outdir}',
-                            f'REFSEQ={refseq}'
-                            ]
+                            f'REFSEQ={refseq}']
             
             if force:
                 make_command.insert(1, '-B')
@@ -95,15 +95,8 @@ def main():
                 make_all = make_command + ['all']
                 verbose_print(f"Make command: {make_all}", verbose)
                 res = subprocess.run(make_all, check=True)
-                if res.returncode == 0:
-                    if consensus_dir:
-                        make_recall = ['make', '-f', make_file,
-                                       f'INNAME={sample_name}',
-                                       f'INDIR={reads_dir}',
-                                       f'OUTDIR={consensus_dir}', # {outdir}/{sample_name}
-                                       f'REFSEQ={outdir}/{sample_name}_consensus.fasta',
-                                       'all-without-consensus']
-                        res = subprocess.run(make_recall, check=True)
+                if not keep_all_output:
+                    subprocess.run(make_command + ['tidy'])
                     
             except subprocess.CalledProcessError as e:
                 print(f"Error processing sample {sample_name}: {e}")

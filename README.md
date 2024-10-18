@@ -70,7 +70,6 @@ for each sample.
 This produces a large number of output files in the output directory
 specified by the user. 
 
-
 `summarize_samples` - takes a directory containing results from
 running `process_samples` and creates a summary table for all of the
 samples contained in the input directory. 

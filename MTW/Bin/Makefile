@@ -1,3 +1,10 @@
+##
+## @title: Makefile
+## @author: J. Bullard
+## @description: Process a single pair of Illumina fastq files
+##               representing a sample.
+##
+
 # Get the absolute path to this Makefile dynamically
 MAKEFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
 MAKEFILE_DIR := $(dir $(MAKEFILE_PATH))
@@ -8,10 +15,10 @@ MAKEFLAGS += -f $(MAKEFILE_PATH)
 ##
 ## Makefile for processing a pair of fastq files
 ## 
-REFSEQ ?= Reference/NC_012920_human_mito_dna.fasta
-INNAME ?= KB-001335-224_S64_L001
-INDIR  ?= Data
-OUTDIR ?= Results
+REFSEQ ?= $(error Must set REFSEQ) # Reference/NC_012920_human_mito_dna.fasta
+INDIR  ?= $(error Must set INDIR)  # Data
+INNAME ?= $(error Must set INNAME) # KB-001335-224_S64_L001
+OUTDIR ?= $(error Must set OUTDIR) # Results
 
 INF := $(shell ls $(INDIR)/$(INNAME)_R1*.fastq)
 INR := $(shell ls $(INDIR)/$(INNAME)_R2*.fastq)
@@ -24,24 +31,24 @@ $(info |info|: Results Directory: $(OUTDIR))
 IDX_EXTS := sa amb ann bwt pac
 REFIDX   := $(foreach xte, $(IDX_EXTS), $(REFSEQ).$(xte))
 
-OUTBAM := $(OUTDIR)/$(INNAME).bam
+OUTBAM    := $(OUTDIR)/$(INNAME).bam
 DUP_STATS := $(OUTDIR)/$(INNAME)_dup_stats.txt
 
-OUTBCF := $(OUTDIR)/$(INNAME).bcf
-OUTVCF := $(OUTDIR)/$(INNAME).vcf
+PILEUP_BASE  := $(OUTDIR)/$(INNAME)_pileup
+CALLS_BASE   := $(OUTDIR)/$(INNAME)_calls
 
-OUTBCF_CALLS := $(OUTDIR)/$(INNAME)_calls.bcf
-OUTVCF_CALLS := $(OUTDIR)/$(INNAME)_calls.vcf
+OUTBCF       := $(PILEUP_BASE).bcf
+OUTBCF_CALLS := $(CALLS_BASE).bcf
 
-OUTTSV := $(OUTDIR)/$(INNAME)_pileup.tsv
-OUTTSV_CALLS := $(OUTDIR)/$(INNAME)_calls.tsv
+OUTVCF       := $(PILEUP_BASE).vcf
+OUTVCF_CALLS := $(CALLS_BASE).vcf
+
+OUTTSV       := $(PILEUP_BASE).tsv
+OUTTSV_CALLS := $(CALLS_BASE).tsv
 
 OUTCONSENSUS := $(OUTDIR)/$(INNAME)_consensus.fasta
 
-all: index-ref align call-variants tsv vcf consensus
-
-## We can use this target to call the Makefile on the results of running `all`.
-all-without-consensus: index-ref align call-variants tsv vcf
+all: index-ref align bcf vcf tsv
 
 ## Index
 index-ref: $(REFIDX)
@@ -50,7 +57,7 @@ index-ref: $(REFIDX)
 align: $(OUTBAM)
 
 ## Variants
-call-variants: $(OUTBCF) $(OUTBCF_CALLS)
+bcf: $(OUTBCF) $(OUTBCF_CALLS)
 
 ## Consensus
 consensus: $(OUTCONSENSUS)
@@ -65,20 +72,16 @@ clean-index:
 	rm -f $(REFIDX)
 clean-alignments:
 	rm -f $(OUTBAM) $(OUTBAM).bai $(DUP_STATS)
-clean-variants:
-	rm -f $(OUTBCF) $(OUTBCF_CALLS) $(OUTCONSENSUS) $(OUTBCF).bcf.csi $(OUTBCF_CALLS).bcf.csi
+clean-bcf:
+	rm -f $(OUTBCF) $(OUTBCF_CALLS) $(OUTCONSENSUS) $(OUTBCF).csi $(OUTBCF_CALLS).csi
 clean-tsv:
 	rm -f $(OUTTSV) $(OUTTSV_CALLS)
 clean-vcf:
 	rm -f $(OUTVCF_CALLS) $(OUTVCF)
 
-clean: clean-alignments clean-variants clean-tsv clean-vcf
+tidy: clean-index clean-alignments clean-bcf
 
-clean-all: clean-index clean
-
-.PHONY: clean clean-all clean-index clean-alignments clean-variants	\
-	clean-tsv clean-vcf all all-without-consensus index-ref align			\
-	call-variants consensus tsv vcf
+clean: tidy clean-tsv clean-vcf
 
 ##
 ## From here on, we have the actual calls to produces the results.
@@ -104,9 +107,12 @@ $(OUTBCF): $(OUTBAM)
 $(OUTBCF_CALLS): $(OUTBCF)
 	bcftools call -m -W -Ob -A -v --ploidy 1 -a "FORMAT/GP" $^ -o $@
 
-## CALLS->CONSENSUS
-$(OUTCONSENSUS): $(OUTBCF_CALLS)
-	bcftools consensus -f $(REFSEQ) $(OUTBCF_CALLS) -o $(OUTCONSENSUS)
+## Generate Text VCFs
+$(OUTVCF_CALLS): $(OUTBCF_CALLS) 
+	bcftools view -o $@ $^
+
+$(OUTVCF): $(OUTBCF)
+	bcftools view -o $@ $^
 
 ## Make TSVs
 $(OUTTSV): $(OUTBCF)
@@ -115,9 +121,11 @@ $(OUTTSV): $(OUTBCF)
 $(OUTTSV_CALLS): $(OUTBCF_CALLS)
 	bcftools query -H -f'%CHROM\t%POS\t%REF\t%ALT\t%QUAL\t%DP\t%DP4\t[%AD]\n' -o $(OUTTSV_CALLS) $(OUTBCF_CALLS)
 
-## Generate Text VCFs
-$(OUTVCF_CALLS): $(OUTBCF_CALLS) 
-	bcftools view -o $@ $^
+## CALLS->CONSENSUS
+$(OUTCONSENSUS): $(OUTBCF_CALLS)
+	bcftools consensus -f $(REFSEQ) $(OUTBCF_CALLS) -o $(OUTCONSENSUS)
 
-$(OUTVCF): $(OUTBCF)
-	bcftools view -o $@ $^
+
+.PHONY: clean clean-index clean-alignments clean-bcf	\
+	clean-tsv clean-vcf all index-ref align bcf tsv vcf tidy \
+	consensus

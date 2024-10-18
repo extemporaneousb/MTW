@@ -16,22 +16,22 @@ Write a tab-delimited file containing the following columns:
 |q10_dp       | 10th percentile number of reads per base
 |q90_dp       | 90th percentile number of reads per base
 |q95_dp       | 95th percentile number of reads per base
-|n_sites90_10 | Count of the number of sites with a variant that occurs within
+|n_sites10_90 | Count of the number of sites with a variant that occurs within
                 10 to 90 percent of the reads for that site (aka, Heteroplasmy)
-|sites90_10** | The base position of all sites falling within the above range
+|sites10_90*   | The base position of all sites falling within the above range
                 (aka, Heteroplasmic Sites)
 --------------------------------------------------------------------------------
-
-** This column is included only if one specifies the '-s' option. 
-
+* This column is included only if one specifies the '-s' option.
 
 Options:
 
 -v                     Print more detailed output during execution.
 
--o <summary_tsv>       The output file for the summary.
+-s                     Include heteroplasmic site locations if they exist. This will
+                       result in a comma-separated list including all sites
+                       falling within the range of 10 and 90 percent.
 
--s                     Include heteroplasmic site locations if they exist [default: False].
+-o <summary_tsv>       The output file for the summary.
 
 Arguments:
 
@@ -48,7 +48,6 @@ def verbose_print(message, verbose):
     """Prints a message only if verbose mode is enabled."""
     if verbose:
         print(message)
-
 
 FILE_PATTERN='_pileup.tsv'
 DP_COL='[6]DP'
@@ -98,17 +97,20 @@ def main():
                 ad_col = df.filter(regex=r'[7].*:AD')
                 variant_counts = ad_col.map(lambda x: [float(y) for y in x.split(',')])
                 variant_totals = variant_counts.map(sum)
+
+                ## It is easy to specify alternative thresholds by
+                ## adding the threshold to the `cuts` list. 
                 cuts = [10.0]
                 h_cut = {}
                 s_cut = {}
 
                 for c in cuts:
                     sites = np.zeros(len(variant_totals))
-
                     for i in range(0, len(variant_totals)):
-                        sites[i] = any([c <= (100.0*(x/variant_totals.iloc[i,0])) <= (100.0-c) for x in variant_counts.iloc[i,0]])
-                        
-
+                        sites[i] = any(
+                            [c <= (100.0*(x/variant_totals.iloc[i,0])) <= (100.0-c)
+                             for x in variant_counts.iloc[i,0]]
+                        )
                     h_cut[c] = sum(sites)
                     s_cut[c] = np.where(sites)[0].tolist()
                     
@@ -119,13 +121,17 @@ def main():
                     'q05_dp':        quartiles_dp[.05],
                     'q10_dp':        quartiles_dp[.1],
                     'q90_dp':        quartiles_dp[.9],
-                    'q95_dp':        quartiles_dp[.95],
-                    'n_sites90_10':  h_cut[10]
+                    'q95_dp':        quartiles_dp[.95]
                 }
-                if (include_sites):
-                    row['sites90_10'] = s_cut[10]
+                for c in cuts:
+                    nnn = f'n_sites{c}_{100-c}'
+                    nsn = f'sites{c}_{100-c}'
+                    row[nnn] = h_cut[c]
+                    if include_sites:
+                        row[nsn] = ",".join(map(str, s_cut[c]))
+                
+                ## Add the row to the growing table
                 summary_data.append(row)
-
 
             except Exception as e:
                 print(f"Error processing sample {filename}: {e}")
