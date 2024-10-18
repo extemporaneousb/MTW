@@ -7,7 +7,8 @@ setup(
     include_package_data=True,           # Include non-code files like data, Makefile
     install_requires=[
         'docopt>=0.6.2',
-        'pandas>=2.2'
+        'pandas>=2.2',
+        'numpy>=2.1'
     ],
     package_data={
         'MTW': [
@@ -21,5 +22,5 @@ setup(
     ],
     author="James Bullard",
     description="The MTW package provides commands to compute and summarize heteroplasmy from Illumina paired-end sequencing data.",
-    python_requires='>=3.9',  # Requires Python 3.6 or higher
+    python_requires='>=3.9',
 )
