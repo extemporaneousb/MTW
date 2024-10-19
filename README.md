@@ -8,33 +8,36 @@ the package is expected to function on most Unix-like systems with the
 dependencies installed in the appropriate way for that system. 
 
 1. Install Dependencies
-
 ```
 brew install python3 bcftools bwa samtools
 ```
 
 2. Install Minimalist Mitochondrial Sequencing Workflow Package
-
 ```
-pip3 install https://github.com/extemporaneousb/MTW/zipball/master
+python3 -m venv ~/.mtw_virtualenv && \
+    source ~/.mtw_virtualenv/bin/activate && \
+    pip install https://github.com/extemporaneousb/MTW/zipball/master
 ```
 
-3. Align reads to reference and generate vcf and tsv outputs.**
+3. Make it easy to call the scripts on the system.
+```
+sudo ln -s ~/.mtw_virtualenv/bin/process_samples /usr/local/bin/process_samples
+sudo ln -s ~/.mtw_virtualenv/bin/summarize_samples /usr/local/bin/summarize_samples
+```
 
+4. Align reads to reference and generate vcf and tsv outputs.**
 ```
 process_samples -o Results <directory-of-fastq-files>
 ```
  
-4. Compute heteroplasmy on the samples processed from step (3) above
+5. Compute heteroplasmy on the samples 
    and write output to summary.tsv.
-
 ```
 summarize_samples -o summary.tsv Results
 ```
 
 ** Note: <directory-of-fastq-files> must be a directory containing
-         readable fastq files 2 files per sample - forward and reverse 
-         reads.
+         a forward and a reverse fastq file for each sample.
 
 
 ## Overview
