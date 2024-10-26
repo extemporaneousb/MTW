@@ -40,6 +40,20 @@ summarize_samples -o summary.tsv Results
          a forward and a reverse fastq file for each sample.
 
 
+## Updating the Package from Github
+
+To updated the installed package from Github, one need only run the
+following commands:
+
+```
+source ~/.mtw_virtualenv/bin/activate && \
+    pip install https://github.com/extemporaneousb/MTW/zipball/master
+```
+
+One can add the `-v` flag to `process_samples` and `summarize_samples`
+to increase the logging output.
+
+
 ## Overview
 
 ### `process_samples`
