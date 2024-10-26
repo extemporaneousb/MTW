@@ -104,13 +104,20 @@ def main():
                 h_cut = {}
                 s_cut = {}
 
+                # for a given cut, we label each position as heteroplasmic or not. 
                 for c in cuts:
-                    sites = np.zeros(len(variant_totals))
-                    for i in range(0, len(variant_totals)):
-                        sites[i] = any(
-                            [c <= (100.0*(x/variant_totals.iloc[i,0])) <= (100.0-c)
-                             for x in variant_counts.iloc[i,0]]
-                        )
+                    uc = 100.0 - c
+                    sites = np.zeros(len(variant_totals))   # over the cuts specified above.
+                    for i in range(0, len(variant_totals)): # over the sites in the genome.
+                        vcs = variant_counts.iloc[i,0]
+                        vtl = variant_totals.iloc[i,0]
+                        if vtl <= 0:
+                            verbose_print(f"Site {i} has: {vtl} observations.", verbose)
+                            sites[i] = False
+                        else:
+                            freqs = 100*(vcs/vtl)
+                            sites[i] = any((c <= freqs) & (uc >= freqs))
+                    
                     h_cut[c] = sum(sites)
                     s_cut[c] = np.where(sites)[0].tolist()
                     

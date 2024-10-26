@@ -105,7 +105,7 @@ $(OUTBCF): $(OUTBAM)
 
 ## PILEUP->CALLS
 $(OUTBCF_CALLS): $(OUTBCF)
-	bcftools call -m -W -Ob -A -v --ploidy 1 -a "FORMAT/GP" $^ -o $@
+	bcftools call -m -W -Ob -v --ploidy 1 -a "FORMAT/GP" $^ -o $@
 
 ## Generate Text VCFs
 $(OUTVCF_CALLS): $(OUTBCF_CALLS) 
