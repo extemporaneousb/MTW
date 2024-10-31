@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="MTW", 
-    version="0.1.0", 
+    version="0.2.0-db0f2ee", 
     packages=find_packages(), 
     include_package_data=True,           # Include non-code files like data, Makefile
     install_requires=[
