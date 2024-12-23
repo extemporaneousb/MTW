@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="MTW", 
-    version="0.3.0", 
+    version="0.4.0", 
     packages=find_packages(), 
     include_package_data=True,           # Include non-code files like data, Makefile
     install_requires=[
@@ -22,5 +22,5 @@ setup(
     ],
     author="James Bullard",
     description="The MTW package provides commands to compute and summarize heteroplasmy from Illumina paired-end sequencing data.",
-    python_requires='>=3.9',
+    python_requires='>=3.10'
 )

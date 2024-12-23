@@ -36,6 +36,13 @@ process_samples -o Results <directory-of-fastq-files>
 summarize_samples -o summary.tsv Results
 ```
 
+6. Compute heteroplasmy on the samples and exclude problematic sites
+   specified as follows:
+```
+summarize_samples -e 303-315 -e 3100-3110 -o summary.tsv Results
+```
+
+
 ** Note: <directory-of-fastq-files> must be a directory containing
          a forward and a reverse fastq file for each sample.
 
