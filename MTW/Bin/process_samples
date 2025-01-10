@@ -74,6 +74,10 @@ def main():
     
     # List fastq files and process each sample
     for filename in os.listdir(reads_dir):
+        ##
+        ## Replace .endswith with a more flexible expression like this:
+        ## ls $(INDIR)/$(INNAME)_R1*((.fastq.gz)|(.fastq))
+        ## 
         if '_R1' in filename and filename.endswith('.fastq'):
             sample_name = filename.split('_R1')[0]
             verbose_print(f"Processing sample: {sample_name}", verbose)

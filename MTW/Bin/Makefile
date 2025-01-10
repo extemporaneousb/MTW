@@ -20,6 +20,12 @@ INDIR  ?= $(error Must set INDIR)  # Data
 INNAME ?= $(error Must set INNAME) # KB-001335-224_S64_L001
 OUTDIR ?= $(error Must set OUTDIR) # Results
 
+##
+## To make this accept fastq.gz files directory, replace the INF and
+## INR lines with an expression like this:
+##
+## ls $(INDIR)/$(INNAME)_R1*((.fastq.gz)|(.fastq))
+##
 INF := $(shell ls $(INDIR)/$(INNAME)_R1*.fastq)
 INR := $(shell ls $(INDIR)/$(INNAME)_R2*.fastq)
 
