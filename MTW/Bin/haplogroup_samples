@@ -1,0 +1,123 @@
+#!/usr/bin/env python3
+
+cmd_doc = """
+Usage: haplogroup_samples [-v] [--tree <phylotree>] [-o <haplogroups_tsv>] <results_dir>
+
+Call haplogrep3 on VCF files in <results_dir>. 
+
+Options:
+
+-v                     Print more detailed output during execution.
+
+--tree <phylotree>     The tree to use for haplogrep3. [default: phylotree-fu-rcrs@1.2]
+
+-o <haplogroups_tsv>   Write output to file. [default: haplogroups.tsv]
+
+Arguments:
+
+<results_dir>          Directory containing results from running 'process_samples'
+
+"""
+
+import os
+import sys
+import re
+import subprocess
+import importlib.resources
+import tempfile
+
+import numpy as np
+import pandas as pd
+
+from docopt import docopt
+
+FILE_PATTERN='_calls.vcf'
+
+def verbose_print(message, verbose):
+    """Prints a message only if verbose mode is enabled."""
+    if verbose:
+        print(message)
+
+def main():
+    # Parse command-line arguments using docopt
+    args = docopt(cmd_doc)
+
+    verbose = args['-v']
+    haplogroups_tsv = args['-o'] if args['-o'] else 'haplogroups.tsv'
+    h_tree = args['--tree'] if args['--tree'] else 'phylotree-fu-rcrs@1.2'
+    results_dir = args['<results_dir>']
+
+    # Get the haplogrep3 command location.
+    haplogrep3 = importlib.resources.files('MTW.Tools').joinpath(
+        'haplogrep3-3.2.1', 'haplogrep3')
+
+    if not haplogrep3.exists():
+        # Need to install haplogrep3 package.
+        try:
+            install_cmd = importlib.resources.files('MTW.Tools').joinpath('add_haplogroup.sh')
+            install_dir = install_cmd.parent
+            
+            verbose_print(f"Installing haplogrep3 to: {install_dir} with: {install_cmd}", verbose)
+            res = subprocess.run(str(install_cmd), check=True, cwd=str(install_dir))
+
+            haplogrep3 = install_dir.joinpath('haplogrep3-3.2.1', 'haplogrep3')
+            
+        except Exception as e:
+            print(f"Failed to run haplogrep3 install, error: {e}")
+            sys.exit(1)
+        
+    # Convert command to string.
+    haplogrep3 = str(haplogrep3)
+   
+    # Check if the results directory exists
+    if not os.path.isdir(results_dir):
+        print(f"Error: Directory: {results_dir} does not exist.")
+        sys.exit(1)
+
+    
+    verbose_print(f"Reading files from: {results_dir}", verbose)
+    verbose_print(f"Output file: {haplogroups_tsv}", verbose)
+    verbose_print(f"Haplogrep3 Command: {haplogrep3}", verbose)
+    verbose_print(f"Haplogrep3 Tree: {h_tree}", verbose)
+    
+    # Initialize a list to store summary data for each sample
+    summary_data = pd.DataFrame()
+
+    # Process each TSV file in the directory
+    for filename in os.listdir(results_dir):
+        if filename.endswith(FILE_PATTERN):
+            verbose_print(f"Processing sample: {filename}", verbose)
+            try:
+                # Construct the full path for input files.
+                filepath = os.path.join(results_dir, filename)
+                outfile = tempfile.NamedTemporaryFile().name
+                haplogrep3_cmd = [haplogrep3, 'classify',
+                                  '--tree', h_tree,
+                                  '--input', filepath,
+                                  '--output', outfile]
+                verbose_print(f"Haplogrep3 Call: {' '.join(haplogrep3_cmd)}",
+                              verbose)
+                res = subprocess.run(haplogrep3_cmd, check=True)
+                h_calls = pd.read_csv(outfile, sep='\t')
+                summary_data = pd.concat([summary_data, h_calls],
+                                         ignore_index = True)
+            except Exception as e:
+                print(f"Error processing sample from file: {filename}: {e}")
+                sys.exit(1)
+
+    
+    # Write the summary DataFrame to a TSV file
+    summary_data.to_csv(haplogroups_tsv, sep='\t', index=False,
+                        float_format='%.2f')
+    
+    verbose_print(f"Summary statistics written to: {haplogroups_tsv}",
+                  verbose)
+
+
+if __name__ == '__main__':
+    main()
+
+
+
+
+
