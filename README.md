@@ -152,6 +152,54 @@ Arguments:
 ```
 
 
+### `haplogroup_samples`
+
+#### Prerequisites
+
+To call `haplogroup_samples` Java needs to be installed and available
+in the users path. This is most directly achieved using `brew`:
+
+```
+brew install openjdk
+```
+
+And then adding the openjdk bin directory to your path. You can do
+this directly by issuing the following command:
+
+```
+echo 'export PATH="/opt/homebrew/opt/openjdk/bin:$PATH"' >> ~/.zshrc
+```
+
+Restart the terminal and check that `java` is in your path:
+
+```
+which java
+```
+
+#### `haplogroup_samples`
+
+Calls `haplogrep3` on a results directory of VCF files producing a
+`haplogroups.tsv` with a single line for each `call` VCF file in the
+results directory.
+
+```
+Usage: haplogroup_samples [-v] [--tree <phylotree>] [-o <haplogroups_tsv>] <results_dir>
+
+Call haplogrep3 on VCF files in <results_dir>.
+
+Options:
+
+-v                     Print more detailed output during execution.
+
+--tree <phylotree>     The tree to use for haplogrep3. [default: phylotree-fu-rcrs@1.2]
+
+-o <haplogroups_tsv>   Write output to file. [default: haplogroups.tsv]
+
+Arguments:
+
+<results_dir>          Directory containing results from running 'process_samples'
+```
+
 
 
 
